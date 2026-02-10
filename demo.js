@@ -88,16 +88,14 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter] = useState('All');
   const [sortBy, setSortBy] = useState('itemName');
   const [sortOrder, setSortOrder] = useState('asc');
 
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = items.slice(indexOfFirstItem, indexOfLastItem);
-
-  // Filter and sort items
+    // Filter and sort items
   const filteredAndSortedItems = [...items]
     .filter(item => 
       item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
