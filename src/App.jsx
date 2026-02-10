@@ -1,171 +1,219 @@
 import { useMemo, useState } from 'react';
 
-const navItems = [
-  { label: 'Dashboard', icon: '▦' },
-  { label: 'Clients', icon: '▣' },
-  { label: 'Assets', icon: '◈' },
-  { label: 'Job', icon: '⚒', hasChevron: true },
-  { label: 'Statistical Reports', icon: '▤', hasChevron: true },
-  { label: 'Administration', icon: '◉', hasChevron: true },
-  {
-    label: 'Item Catalog',
-    icon: '⚑',
-    hasChevron: true,
-    active: true,
-    children: [
-      { label: 'Item Category' },
-      { label: 'Items', active: true },
-    ],
-  },
-  { label: 'Time Reporting', icon: '◷', hasChevron: true },
-  { label: 'Configuration', icon: '⚙', hasChevron: true },
+const ITEMS = [
+  { id: 1, itemName: '"PSU-PG-P-24-33V/13A "', itemId: 'XX00331', itemCategory: 'Others', status: 'Active', unitOfMeasure: 'EA' },
+  { id: 2, itemName: '"S" landing door key', itemId: 'HMSS018', itemCategory: 'Schedule of rates', status: 'Active', unitOfMeasure: 'PC' },
+  { id: 3, itemName: '"TAPE-2" MASKING TAPE TIP-210 "', itemId: 'XX00390', itemCategory: 'Others', status: 'Active', unitOfMeasure: 'EA' },
+  { id: 4, itemName: '"Triangle" landing door key', itemId: 'HMSS019', itemCategory: 'Schedule of rates', status: 'Active', unitOfMeasure: 'PC' },
+  { id: 5, itemName: '"VACUUM BAG - Electrolux" Model "', itemId: 'XX00489', itemCategory: 'Others', status: 'Active', unitOfMeasure: 'EA' },
+  { id: 6, itemName: '"VVVF Inverter Unit (17th"', itemId: 'XX00501', itemCategory: 'Schedule of rates', status: 'Active', unitOfMeasure: 'EA' },
+  { id: 7, itemName: '"LED Strip Light - 5m"', itemId: 'XX00622', itemCategory: 'Others', status: 'Inactive', unitOfMeasure: 'PC' },
+  { id: 8, itemName: '"Emergency Exit Sign"', itemId: 'HMSS025', itemCategory: 'Schedule of rates', status: 'Active', unitOfMeasure: 'EA' },
+  { id: 9, itemName: '"Fire Extinguisher - 5kg"', itemId: 'XX00788', itemCategory: 'Others', status: 'Active', unitOfMeasure: 'PC' },
+  { id: 10, itemName: '"Smoke Detector - Ceiling Mount"', itemId: 'HMSS033', itemCategory: 'Schedule of rates', status: 'Active', unitOfMeasure: 'EA' },
 ];
 
-const items = [
-  ['"PSU-PG-P-24-33V/13A "', 'XX00331', 'Others', 'Active', 'EA'],
-  ['"S" landing door key', 'HMSS018', 'Schedule of rates', 'Active', 'PC'],
-  ['"TAPE-2"" MASKING TAPE TIP-210 "', 'XX00390', 'Others', 'Active', 'EA'],
-  ['"Triangle" landing door key', 'HMSS019', 'Schedule of rates', 'Active', 'PC'],
-  ['"VACUUM BAG - Electrolux" Model "', 'XX00489', 'Others', 'Active', 'EA'],
-  ['"VVVF Inverter Unit (17th', 'XX00501', 'Schedule of rates', 'Active', 'EA'],
-  ['"LED Strip Light - 5m"', 'XX00622', 'Others', 'Inactive', 'PC'],
-  ['"Emergency Exit Sign"', 'HMSS025', 'Schedule of rates', 'Active', 'EA'],
-  ['"Fire Extinguisher - 5kg"', 'XX00788', 'Others', 'Active', 'PC'],
-  ['"Smoke Detector - Ceiling Mount"', 'HMSS033', 'Schedule of rates', 'Active', 'EA'],
-].map(([itemName, itemId, itemCategory, status, unitOfMeasure], index) => ({
-  id: index + 1,
-  itemName,
-  itemId,
-  itemCategory,
-  status,
-  unitOfMeasure,
-}));
+const NAV_ITEMS = [
+  'Dashboard',
+  'Clients',
+  'Assets',
+  'Job',
+  'Statistical Reports',
+  'Administration',
+  'Item Catalog',
+  'Time Reporting',
+  'Configuration',
+];
+
+const sortArrow = {
+  asc: '↑',
+  desc: '↓',
+};
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [tableSearch, setTableSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [sortBy, setSortBy] = useState('itemName');
+  const [sortOrder, setSortOrder] = useState('asc');
 
-  const filteredItems = useMemo(
-    () =>
-      items.filter((item) => {
-        const matchSearch =
-          item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.itemId.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchStatus = statusFilter === 'All' || item.status === statusFilter;
-        return matchSearch && matchStatus;
-      }),
-    [searchTerm, statusFilter],
-  );
+  const filteredItems = useMemo(() => {
+    const loweredTop = searchTerm.toLowerCase();
+    const loweredTable = tableSearch.toLowerCase();
+
+    return ITEMS.filter((item) => {
+      const matchTopSearch =
+        item.itemName.toLowerCase().includes(loweredTop) ||
+        item.itemId.toLowerCase().includes(loweredTop);
+      const matchTableSearch =
+        item.itemName.toLowerCase().includes(loweredTable) ||
+        item.itemId.toLowerCase().includes(loweredTable);
+      const matchStatus = statusFilter === 'All' || item.status === statusFilter;
+
+      return matchTopSearch && matchTableSearch && matchStatus;
+    });
+  }, [searchTerm, tableSearch, statusFilter]);
+
+  const sortedItems = useMemo(() => {
+    return [...filteredItems].sort((a, b) => {
+      const left = a[sortBy];
+      const right = b[sortBy];
+
+      if (typeof left === 'string' && typeof right === 'string') {
+        return sortOrder === 'asc' ? left.localeCompare(right) : right.localeCompare(left);
+      }
+
+      return 0;
+    });
+  }, [filteredItems, sortBy, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage));
+
+  const pagedItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedItems.slice(start, start + itemsPerPage);
+  }, [sortedItems, currentPage, itemsPerPage]);
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder((previous) => (previous === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortBy(column);
+    setSortOrder('asc');
+  };
+
+  const showingFrom = sortedItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const showingTo = Math.min(currentPage * itemsPerPage, sortedItems.length);
 
   return (
-    <div className="flex min-h-screen bg-[#f0f2f5] text-slate-800">
-      <aside className="w-60 shrink-0 bg-[#002347] text-white">
+    <div className="flex min-h-screen bg-[#f1f3f6] text-[#1e293b]">
+      <aside className="w-60 shrink-0 bg-[#00254a] text-white">
         <div className="flex h-14 items-center gap-3 border-b border-white/10 px-4">
-          <div className="text-4xl font-bold leading-none">K</div>
-          <div className="text-[40px] leading-none">|</div>
-          <p className="text-4xl font-semibold tracking-wide">Kegmil</p>
+          <span className="text-3xl font-bold">K</span>
+          <span className="text-3xl font-semibold tracking-wide">Kegmil</span>
         </div>
 
-        <nav className="py-4 text-[32px] leading-none">
-          {navItems.map((item) => (
-            <div key={item.label}>
-              <div
-                className={`flex items-center justify-between px-4 py-4 transition ${
-                  item.active ? 'bg-black/20' : 'hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="w-7 text-center text-[24px] text-white/80">{item.icon}</span>
-                  <span className="text-white/90">{item.label}</span>
-                </div>
-                {item.hasChevron && <span className="text-white/70">⌄</span>}
-              </div>
+        <nav className="pt-5 text-[30px]">
+          {NAV_ITEMS.map((label) => {
+            const isCatalog = label === 'Item Catalog';
+            return (
+              <div key={label}>
+                <button
+                  type="button"
+                  className={`flex w-full items-center justify-between px-4 py-3 text-left text-white/90 hover:bg-white/10 ${
+                    isCatalog ? 'bg-black/25' : ''
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className="text-white/70">⌄</span>
+                </button>
 
-              {item.children && (
-                <div className="bg-black/30 text-[32px]">
-                  {item.children.map((child) => (
-                    <div
-                      key={child.label}
-                      className={`px-8 py-4 ${
-                        child.active ? 'bg-[#0f55c8] text-white' : 'text-white/80 hover:bg-white/10'
-                      }`}
-                    >
-                      {child.label}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                {isCatalog && (
+                  <div className="bg-black/35">
+                    <div className="px-8 py-3 text-white/80">Item Category</div>
+                    <div className="bg-[#0f55c8] px-8 py-3 text-white">Items</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-6">
-          <h1 className="text-[54px] font-semibold leading-none text-[#101828]">Items</h1>
-          <div className="flex items-center gap-4 text-[32px] text-slate-700">
-            <div className="flex h-9 items-center overflow-hidden rounded border border-slate-300 bg-white">
-              <select className="h-full border-r border-slate-200 px-4 text-base text-slate-600 outline-none">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Items</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 items-center overflow-hidden rounded border border-slate-300">
+              <select className="h-full border-r border-slate-200 px-3 text-sm text-slate-600 outline-none">
                 <option>All</option>
               </select>
-              <div className="relative flex h-full items-center">
-                <span className="pl-3 text-slate-400">⌕</span>
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="10010820"
-                  className="h-full w-64 px-3 text-base outline-none"
-                />
-                <button className="px-3 text-slate-400">✕</button>
-              </div>
+              <span className="pl-3 text-slate-400">⌕</span>
+              <input
+                value={searchTerm}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setSearchTerm(event.target.value);
+                }}
+                placeholder="10010820"
+                className="h-full w-56 px-2 text-sm outline-none"
+              />
+              <button type="button" className="px-3 text-slate-400" onClick={() => setSearchTerm('')}>
+                ✕
+              </button>
             </div>
-            <button className="text-4xl">＋</button>
-            <button className="text-3xl">🔔</button>
-            <div className="flex items-center gap-2 text-xl">
+            <button type="button" className="text-xl text-slate-600">＋</button>
+            <button type="button" className="text-lg text-slate-600">🔔</button>
+            <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-full bg-slate-200" />
-              <span>Suzi Tan</span>
+              <span className="text-sm text-slate-700">Suzi Tan</span>
             </div>
           </div>
         </header>
 
         <section className="p-5">
-          <div className="rounded-sm border border-slate-200 bg-[#f6f7f9] p-5">
+          <div className="rounded-sm border border-slate-200 bg-[#f7f8fa] p-4">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <button className="h-9 rounded border border-slate-300 bg-white px-3 text-slate-500">⏷</button>
+                <button type="button" className="h-9 rounded border border-slate-300 bg-white px-3 text-slate-500">⚲</button>
                 <div className="flex h-9 items-center rounded border border-slate-300 bg-white px-3 text-slate-400">
                   ⌕
                   <input
-                    className="ml-2 w-56 text-base text-slate-700 placeholder:text-slate-400 outline-none"
+                    value={tableSearch}
+                    onChange={(event) => {
+                      setCurrentPage(1);
+                      setTableSearch(event.target.value);
+                    }}
+                    className="ml-2 w-60 text-sm text-slate-700 placeholder:text-slate-400 outline-none"
                     placeholder="Search by Item Name, ..."
                   />
                 </div>
                 <select
-                  className="h-9 rounded border border-slate-300 bg-white px-3 text-base text-slate-600"
+                  className="h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-600"
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
+                  onChange={(event) => {
+                    setCurrentPage(1);
+                    setStatusFilter(event.target.value);
+                  }}
                 >
                   <option>All</option>
                   <option>Active</option>
                   <option>Inactive</option>
                 </select>
               </div>
-              <button className="h-9 rounded border border-slate-300 bg-white px-3 text-slate-500">⊞</button>
+              <button type="button" className="h-9 rounded border border-slate-300 bg-white px-3 text-slate-500">⊞</button>
             </div>
 
             <div className="overflow-auto rounded-sm border border-slate-200 bg-white">
-              <table className="min-w-[980px] text-left text-xl">
+              <table className="min-w-[1080px] text-left text-base">
                 <thead className="bg-[#f4f5f7] text-[#111827]">
                   <tr>
-                    {['ITEM NAME', 'ITEM ID', 'ITEM CATEGORY', 'STATUS', 'UNIT OF MEASURE', 'ACTION'].map((header) => (
-                      <th key={header} className="whitespace-nowrap border-r border-slate-200 px-5 py-4 font-semibold last:border-r-0">
-                        {header}
+                    {[
+                      ['ITEM NAME', 'itemName'],
+                      ['ITEM ID', 'itemId'],
+                      ['ITEM CATEGORY', 'itemCategory'],
+                      ['STATUS', 'status'],
+                      ['UNIT OF MEASURE', 'unitOfMeasure'],
+                    ].map(([header, key]) => (
+                      <th
+                        key={header}
+                        className="whitespace-nowrap border-r border-slate-200 px-5 py-4 font-semibold last:border-r-0"
+                      >
+                        <button type="button" className="flex w-full items-center justify-between" onClick={() => handleSort(key)}>
+                          <span>{header}</span>
+                          <span className="ml-2 text-slate-400">{sortBy === key ? sortArrow[sortOrder] : '↕'}</span>
+                        </button>
                       </th>
                     ))}
+                    <th className="whitespace-nowrap px-5 py-4 font-semibold">ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredItems.map((item) => (
+                  {pagedItems.map((item) => (
                     <tr key={item.id} className="border-t border-slate-100 text-slate-700">
                       <td className="px-5 py-4 font-semibold text-[#0b4fb8]">{item.itemName}</td>
                       <td className="px-5 py-4">{item.itemId}</td>
@@ -179,18 +227,32 @@ function App() {
               </table>
             </div>
 
-            <div className="mt-4 flex items-center justify-end gap-3 text-xl text-slate-600">
-              <span>1-10 of 7067 items</span>
+            <div className="mt-4 flex items-center justify-end gap-3 text-sm text-slate-600">
+              <span>
+                {showingFrom}-{showingTo} of {sortedItems.length} items
+              </span>
               <div className="flex items-center gap-2">
-                <button className="h-9 w-9 rounded border border-slate-300 bg-white text-slate-400">‹</button>
-                <button className="h-9 w-9 rounded bg-[#0f55c8] text-white">1</button>
-                <button className="h-9 w-9 rounded border border-slate-300 bg-white">2</button>
-                <button className="h-9 w-9 rounded border border-slate-300 bg-white">3</button>
-                <span>…</span>
-                <button className="h-9 w-12 rounded border border-slate-300 bg-white">707</button>
-                <button className="h-9 w-9 rounded border border-slate-300 bg-white">›</button>
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded border border-slate-300 bg-white text-slate-500 disabled:cursor-not-allowed disabled:text-slate-300"
+                  onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ‹
+                </button>
+                <button type="button" className="h-9 w-9 rounded bg-[#0f55c8] text-white">
+                  {currentPage}
+                </button>
+                <button
+                  type="button"
+                  className="h-9 w-9 rounded border border-slate-300 bg-white text-slate-500 disabled:cursor-not-allowed disabled:text-slate-300"
+                  onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  ›
+                </button>
               </div>
-              <span>10 / page</span>
+              <span>{itemsPerPage} / page</span>
             </div>
           </div>
         </section>
