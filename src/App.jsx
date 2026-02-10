@@ -1,579 +1,376 @@
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-const App = () => {
-  // Mock data for items
-  const [items] = useState([
-    {
-      id: 1,
-      itemName: '"PSU-PG-P-24-33V/13A "',
-      itemId: 'XX00331',
-      itemCategory: 'Others',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    },
-    {
-      id: 2,
-      itemName: '"S" landing door key',
-      itemId: 'HMSS018',
-      itemCategory: 'Schedule of rates',
-      status: 'Active',
-      unitOfMeasure: 'PC'
-    },
-    {
-      id: 3,
-      itemName: '"TAPE-2"" MASKING TAPE TIP-210 "',
-      itemId: 'XX00390',
-      itemCategory: 'Others',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    },
-    {
-      id: 4,
-      itemName: '"Triangle" landing door key',
-      itemId: 'HMSS019',
-      itemCategory: 'Schedule of rates',
-      status: 'Active',
-      unitOfMeasure: 'PC'
-    },
-    {
-      id: 5,
-      itemName: '"VACUUM BAG - Electrolux" Model "',
-      itemId: 'XX00489',
-      itemCategory: 'Others',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    },
-    {
-      id: 6,
-      itemName: '"VVVF Inverter Unit (17th"',
-      itemId: 'XX00501',
-      itemCategory: 'Schedule of rates',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    },
-    {
-      id: 7,
-      itemName: '"LED Strip Light - 5m"',
-      itemId: 'XX00622',
-      itemCategory: 'Others',
-      status: 'Inactive',
-      unitOfMeasure: 'PC'
-    },
-    {
-      id: 8,
-      itemName: '"Emergency Exit Sign"',
-      itemId: 'HMSS025',
-      itemCategory: 'Schedule of rates',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    },
-    {
-      id: 9,
-      itemName: '"Fire Extinguisher - 5kg"',
-      itemId: 'XX00788',
-      itemCategory: 'Others',
-      status: 'Active',
-      unitOfMeasure: 'PC'
-    },
-    {
-      id: 10,
-      itemName: '"Smoke Detector - Ceiling Mount"',
-      itemId: 'HMSS033',
-      itemCategory: 'Schedule of rates',
-      status: 'Active',
-      unitOfMeasure: 'EA'
-    }
-  ]);
+const mockHistory = [
+  {
+    id: 'IMP-2026-001',
+    type: 'Image',
+    mappingFile: 'item-image-mapping-jan.csv',
+    zipFile: 'images-jan.zip',
+    date: '2026-02-10 09:12',
+    user: 'Suzi Tan',
+    successCount: 9,
+    failedCount: 3,
+    status: 'Completed',
+    mappingContent: 'itemCode,fileName\nXX00331,psu-24v.jpg',
+    zipContent: 'Mock ZIP content: images for January import'
+  },
+  {
+    id: 'IMP-2026-002',
+    type: 'Attachment',
+    mappingFile: 'attachment-mapping-feb.xlsx',
+    zipFile: 'attachments-feb.zip',
+    date: '2026-02-10 10:03',
+    user: 'Suzi Tan',
+    successCount: 12,
+    failedCount: 0,
+    status: 'Completed',
+    mappingContent: 'itemCode,fileName\nHMSS018,door-key-manual.pdf',
+    zipContent: 'Mock ZIP content: attachments for February import'
+  }
+];
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [sortBy, setSortBy] = useState('itemName');
-  const [sortOrder, setSortOrder] = useState('asc');
+const makeResultRows = () => [
+  { row: 1, itemCode: 'XX00331', itemName: 'PSU-PG-P-24-33V/13A', fileName: 'psu-24v.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 2, itemCode: 'HMSS018', itemName: 'S landing door key', fileName: 's-key.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 3, itemCode: 'XX00390', itemName: 'TAPE-2 MASKING TAPE TIP-210', fileName: 'masking-tape.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 4, itemCode: 'HMSS019', itemName: 'Triangle landing door key', fileName: 'triangle-key.jpg', status: 'Failed', details: 'Filename not found in ZIP' },
+  { row: 5, itemCode: 'XX00489', itemName: 'VACUUM BAG - Electrolux', fileName: 'vacuum-bag.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 6, itemCode: 'XX00501', itemName: 'VVVF Inverter Unit', fileName: 'inverter-unit.jpg', status: 'Failed', details: 'Item code does not exist' },
+  { row: 7, itemCode: 'XX00622', itemName: 'LED Strip Light - 5m', fileName: 'led-strip.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 8, itemCode: 'HMSS025', itemName: 'Emergency Exit Sign', fileName: 'exit-sign.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 9, itemCode: 'XX00788', itemName: 'Fire Extinguisher - 5kg', fileName: 'extinguisher.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 10, itemCode: 'HMSS033', itemName: 'Smoke Detector - Ceiling Mount', fileName: 'smoke-detector.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 11, itemCode: 'XX00811', itemName: 'Door Motor 3HP', fileName: 'door-motor.jpg', status: 'Failed', details: 'Unsupported file extension in ZIP' },
+  { row: 12, itemCode: 'XX00815', itemName: 'Control Board v2', fileName: 'control-board.jpg', status: 'Success', details: 'Imported successfully' }
+];
 
-  // Calculate pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = items.slice(indexOfFirstItem, indexOfLastItem);
+const downloadBlob = (content, fileName, mimeType) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
-  // Filter and sort items
-  const filteredAndSortedItems = [...items]
-    .filter(item => 
-      item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.itemId.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .filter(item => statusFilter === 'All' || item.status === statusFilter)
-    .sort((a, b) => {
-      if (sortBy === 'itemName') {
-        return sortOrder === 'asc' 
-          ? a.itemName.localeCompare(b.itemName) 
-          : b.itemName.localeCompare(a.itemName);
-      } else if (sortBy === 'itemId') {
-        return sortOrder === 'asc' 
-          ? a.itemId.localeCompare(b.itemId) 
-          : b.itemId.localeCompare(a.itemId);
-      } else if (sortBy === 'itemCategory') {
-        return sortOrder === 'asc' 
-          ? a.itemCategory.localeCompare(b.itemCategory) 
-          : b.itemCategory.localeCompare(a.itemCategory);
-      } else if (sortBy === 'status') {
-        return sortOrder === 'asc' 
-          ? a.status.localeCompare(b.status) 
-          : b.status.localeCompare(a.status);
-      } else if (sortBy === 'unitOfMeasure') {
-        return sortOrder === 'asc' 
-          ? a.unitOfMeasure.localeCompare(b.unitOfMeasure) 
-          : b.unitOfMeasure.localeCompare(a.unitOfMeasure);
-      }
-      return 0;
-    });
+const TypeBadge = ({ type }) => (
+  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${type === 'Image' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700'}`}>
+    {type}
+  </span>
+);
 
-  const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
-  const displayedItems = filteredAndSortedItems.slice(indexOfFirstItem, indexOfLastItem);
+function App() {
+  const [view, setView] = useState('history');
+  const [historyRows, setHistoryRows] = useState(mockHistory);
+  const [importType, setImportType] = useState('');
+  const [mappingFile, setMappingFile] = useState(null);
+  const [zipFile, setZipFile] = useState(null);
+  const [activeImport, setActiveImport] = useState(null);
+  const [resultFilter, setResultFilter] = useState('All');
 
-  const handleSort = (column) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
-    }
+  const canUpload = Boolean(importType && mappingFile && zipFile);
+
+  const visibleResultRows = useMemo(() => {
+    if (!activeImport) return [];
+    if (resultFilter === 'All') return activeImport.resultRows;
+    return activeImport.resultRows.filter((row) => row.status === resultFilter);
+  }, [activeImport, resultFilter]);
+
+  const resultCounts = useMemo(() => {
+    if (!activeImport) return { all: 0, success: 0, failed: 0 };
+    const success = activeImport.resultRows.filter((row) => row.status === 'Success').length;
+    const failed = activeImport.resultRows.filter((row) => row.status === 'Failed').length;
+    return { all: activeImport.resultRows.length, success, failed };
+  }, [activeImport]);
+
+  const startNewImport = () => {
+    setImportType('');
+    setMappingFile(null);
+    setZipFile(null);
+    setView('new');
   };
 
-  const getStatusColor = (status) => {
-    return status === 'Active' ? 'text-green-600 bg-green-50' : 'text-gray-600 bg-gray-100';
+  const submitImport = () => {
+    if (!canUpload) return;
+
+    const resultRows = makeResultRows();
+    const successCount = resultRows.filter((r) => r.status === 'Success').length;
+    const failedCount = resultRows.filter((r) => r.status === 'Failed').length;
+
+    const newImport = {
+      id: `IMP-2026-${String(historyRows.length + 1).padStart(3, '0')}`,
+      type: importType,
+      mappingFile,
+      zipFile,
+      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      user: 'Suzi Tan',
+      successCount,
+      failedCount,
+      status: 'Completed',
+      resultRows
+    };
+
+    setHistoryRows((prev) => [
+      {
+        ...newImport,
+        mappingFile: mappingFile.name,
+        zipFile: zipFile.name,
+        mappingContent: 'Uploaded mapping file',
+        zipContent: 'Uploaded ZIP file'
+      },
+      ...prev
+    ]);
+    setActiveImport(newImport);
+    setResultFilter('All');
+    setView('result');
   };
 
-  // Navigation items
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'clients', label: 'Clients', icon: '👥' },
-    { id: 'assets', label: 'Assets', icon: '📦' },
-    { id: 'job', label: 'Job', icon: '🔧' },
-    { id: 'reports', label: 'Statistical Reports', icon: '📈', hasSubmenu: true },
-    { id: 'admin', label: 'Administration', icon: '🛡️', hasSubmenu: true },
-    { 
-      id: 'itemCatalog', 
-      label: 'Item Catalog', 
-      icon: '📋', 
-      hasSubmenu: true,
-      submenu: [
-        { id: 'itemCategory', label: 'Item Category' },
-        { id: 'items', label: 'Items', active: true }
-      ]
-    },
-    { id: 'timeReporting', label: 'Time Reporting', icon: '⏰', hasSubmenu: true },
-    { id: 'configuration', label: 'Configuration', icon: '⚙️', hasSubmenu: true }
-  ];
+  const openHistoryDetail = (row) => {
+    const detailedImport = {
+      ...row,
+      mappingFile: { name: row.mappingFile, content: row.mappingContent },
+      zipFile: { name: row.zipFile, content: row.zipContent },
+      resultRows: makeResultRows()
+    };
+    setActiveImport(detailedImport);
+    setResultFilter('All');
+    setView('result');
+  };
+
+  const exportResults = () => {
+    if (!activeImport) return;
+    const header = 'row,itemCode,itemName,fileName,status,details';
+    const lines = activeImport.resultRows.map((r) => `${r.row},${r.itemCode},"${r.itemName}",${r.fileName},${r.status},"${r.details}"`);
+    downloadBlob([header, ...lines].join('\n'), `${activeImport.id}-result.csv`, 'text/csv;charset=utf-8');
+  };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 text-white flex flex-col">
-        {/* Logo */}
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="text-2xl font-bold">K</div>
-            <span className="font-semibold">Kegmil</span>
-          </div>
+    <div className="flex h-screen bg-[#f3f5f7] text-[#111827]">
+      <aside className="w-64 shrink-0 bg-[#001a3a] text-white">
+        <div className="flex h-14 items-center gap-3 border-b border-[#13355f] px-4">
+          <div className="text-3xl font-bold">K</div>
+          <div className="text-2xl font-semibold">Kegmil</div>
         </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <div className="px-4 py-2 text-sm font-medium text-gray-400 uppercase tracking-wider">
-                  {item.label}
-                </div>
-                {item.hasSubmenu && (
-                  <ul className="mt-1 space-y-1">
-                    {item.submenu?.map((subItem) => (
-                      <li key={subItem.id}>
-                        <a
-                          href="#"
-                          className={`block px-6 py-3 text-sm transition-colors ${
-                            subItem.active 
-                              ? 'bg-blue-600 text-white' 
-                              : 'text-gray-300 hover:bg-gray-800'
-                          }`}
-                        >
-                          {subItem.label}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {!item.hasSubmenu && (
-                  <a
-                    href="#"
-                    className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-                  >
-                    <span className="mr-3">{item.icon}</span>
-                    {item.label}
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
+        <nav className="space-y-1 py-4 text-sm">
+          {['Dashboard', 'Clients', 'Assets', 'Job', 'Statistical Reports', 'Administration'].map((item) => (
+            <div key={item} className="px-4 py-2 text-[#b6c3d8]">{item}</div>
+          ))}
+          <div className="px-4 py-2 text-[#b6c3d8]">Item Catalog</div>
+          <div className="px-9 py-2 text-[#b6c3d8]">Item Category</div>
+          <div className="px-9 py-2 text-[#b6c3d8]">Items</div>
+          <div className="bg-[#0f57c5] px-9 py-2 font-medium text-white">Import</div>
         </nav>
+      </aside>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
-          <button className="w-full flex items-center justify-center text-gray-400 hover:text-white">
-            <span className="text-lg">☰</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Items</h1>
-          
-          <div className="flex items-center space-x-4">
-            {/* Filter dropdown */}
-            <div className="relative">
-              <select className="appearance-none bg-gray-100 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option>All</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Search bar */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="10010820"
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Add button */}
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-md transition-colors">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </button>
-
-            {/* Notifications */}
-            <div className="relative">
-              <button className="p-2 text-gray-600 hover:text-gray-900 relative">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6.6 8.388 6.6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
-                  93
-                </span>
-              </button>
-            </div>
-
-            {/* User profile */}
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-700">S</span>
-              </div>
-              <span className="text-sm font-medium text-gray-700">Suzi Tan</span>
-            </div>
-
-            {/* Language toggle */}
-            <button className="p-2 text-gray-600 hover:text-gray-900">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.5 4H9m1.5 4H9m-1.5 4h1.5m-7.5 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            </button>
-          </div>
+      <main className="flex-1 overflow-auto">
+        <header className="flex h-14 items-center justify-between border-b border-[#e4e7ec] bg-white px-6">
+          <h1 className="text-2xl font-semibold">Import</h1>
+          <span className="text-sm text-[#475467]">Suzi Tan</span>
         </header>
 
-        {/* Filters and Search Bar */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
-            <button className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 7V4z" />
-              </svg>
-            </button>
-            
-            <div className="relative flex-1 max-w-md">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+        <div className="p-6">
+          {view === 'history' && (
+            <section className="rounded-lg border border-[#e4e7ec] bg-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Import History</h2>
+                <button onClick={startNewImport} className="rounded-md bg-[#0f57c5] px-4 py-2 text-sm font-medium text-white hover:bg-[#0d4cae]">
+                  + New Import
+                </button>
               </div>
-              <input
-                type="text"
-                placeholder="Search by Item Name, ..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
-            <div className="relative">
-              <select className="appearance-none bg-white border border-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option>Status</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-            
-            <button className="ml-auto p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-          </div>
-        </div>
 
-        {/* Items Table */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th 
-                      scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('itemName')}
-                    >
-                      <div className="flex items-center">
-                        ITEM NAME
-                        {sortBy === 'itemName' && (
-                          <span className="ml-1">
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('itemId')}
-                    >
-                      <div className="flex items-center">
-                        ITEM ID
-                        {sortBy === 'itemId' && (
-                          <span className="ml-1">
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('itemCategory')}
-                    >
-                      <div className="flex items-center">
-                        ITEM CATEGORY
-                        {sortBy === 'itemCategory' && (
-                          <span className="ml-1">
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('status')}
-                    >
-                      <div className="flex items-center">
-                        STATUS
-                        {sortBy === 'status' && (
-                          <span className="ml-1">
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={() => handleSort('unitOfMeasure')}
-                    >
-                      <div className="flex items-center">
-                        UNIT OF MEASURE
-                        {sortBy === 'unitOfMeasure' && (
-                          <span className="ml-1">
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ACTION
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {displayedItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {item.itemName}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.itemId}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.itemCategory}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.unitOfMeasure}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                        <button className="text-red-600 hover:text-red-900">Delete</button>
-                      </td>
+              <div className="overflow-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-[#f8fafc] text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Mapping File</th>
+                      <th className="px-4 py-3">ZIP File</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Success / Failed</th>
+                      <th className="px-4 py-3">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing <span className="font-medium">1</span> to{' '}
-                    <span className="font-medium">{Math.min(indexOfLastItem, filteredAndSortedItems.length)}</span> of{' '}
-                    <span className="font-medium">{filteredAndSortedItems.length}</span> items
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <span className="sr-only">Previous</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-
-                    {currentPage > 3 && (
-                      <>
-                        <button
-                          onClick={() => setCurrentPage(1)}
-                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          1
-                        </button>
-                        {currentPage > 4 && (
-                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                            ...
-                          </span>
-                        )}
-                      </>
-                    )}
-
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let page = currentPage - 2 + i;
-                      if (page < 1) page = 1;
-                      if (page > totalPages) page = totalPages;
-                      return page;
-                    }).map((page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          currentPage === page
-                            ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id} className="cursor-pointer border-t border-[#eaecf0] hover:bg-[#f9fafb]" onClick={() => openHistoryDetail(row)}>
+                        <td className="px-4 py-3 font-medium text-[#0f57c5]">{row.id}</td>
+                        <td className="px-4 py-3"><TypeBadge type={row.type} /></td>
+                        <td className="px-4 py-3">{row.mappingFile}</td>
+                        <td className="px-4 py-3">{row.zipFile}</td>
+                        <td className="px-4 py-3">{row.date}</td>
+                        <td className="px-4 py-3">{row.user}</td>
+                        <td className="px-4 py-3">{row.successCount} / {row.failedCount}</td>
+                        <td className="px-4 py-3">{row.status}</td>
+                      </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
-                    {currentPage < totalPages - 2 && (
-                      <>
-                        {currentPage < totalPages - 3 && (
-                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                            ...
-                          </span>
-                        )}
-                        <button
-                          onClick={() => setCurrentPage(totalPages)}
-                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          {totalPages}
-                        </button>
-                      </>
-                    )}
+          {view === 'new' && (
+            <section className="mx-auto max-w-4xl rounded-lg border border-[#e4e7ec] bg-white p-6">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">New Import</h2>
+                <button onClick={() => setView('history')} className="rounded border border-[#d0d5dd] px-3 py-2 text-sm text-[#344054]">Back</button>
+              </div>
 
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-2 text-sm font-medium">Import Type <span className="text-red-500">*</span></p>
+                  <div className="flex gap-6 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="importType" value="Image" checked={importType === 'Image'} onChange={(e) => setImportType(e.target.value)} />
+                      Image
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="importType" value="Attachment" checked={importType === 'Attachment'} onChange={(e) => setImportType(e.target.value)} />
+                      Attachment
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-sm font-medium">Mapping File (CSV / Excel) <span className="text-red-500">*</span></p>
+                      <button type="button" onClick={() => downloadBlob('itemCode,fileName\nXX00331,psu-24v.jpg', 'import-template.csv', 'text/csv;charset=utf-8')} className="text-sm text-[#0f57c5] hover:underline">
+                        Download template
+                      </button>
+                    </div>
+                    <label htmlFor="mapping-file" className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-[#98a2b3] bg-[#f8fafc] px-4 py-3 text-sm">
+                      <span>{mappingFile ? mappingFile.name : 'Click to select mapping file'}</span>
+                      <span className="rounded border border-[#d0d5dd] px-3 py-1">Browse</span>
+                    </label>
+                    <input id="mapping-file" type="file" accept=".csv,.xls,.xlsx" className="hidden" onChange={(e) => setMappingFile(e.target.files?.[0] || null)} />
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-sm font-medium">ZIP File (images / attachments) <span className="text-red-500">*</span></p>
+                    <label htmlFor="zip-file" className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-[#98a2b3] bg-[#f8fafc] px-4 py-3 text-sm">
+                      <span>{zipFile ? zipFile.name : 'Click to select ZIP file'}</span>
+                      <span className="rounded border border-[#d0d5dd] px-3 py-1">Browse</span>
+                    </label>
+                    <input id="zip-file" type="file" accept=".zip" className="hidden" onChange={(e) => setZipFile(e.target.files?.[0] || null)} />
+                  </div>
+                </div>
+
+                <button
+                  onClick={submitImport}
+                  disabled={!canUpload}
+                  className={`rounded-md px-4 py-2 text-sm font-medium text-white ${canUpload ? 'bg-[#0f57c5] hover:bg-[#0d4cae]' : 'cursor-not-allowed bg-[#98a2b3]'}`}
+                >
+                  Upload & Import
+                </button>
+              </div>
+            </section>
+          )}
+
+          {view === 'result' && activeImport && (
+            <section className="rounded-lg border border-[#e4e7ec] bg-white p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="mb-2 flex items-center gap-3">
+                    <h2 className="text-lg font-semibold">Import Result</h2>
+                    <TypeBadge type={activeImport.type} />
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => {
+                        if (activeImport.mappingFile instanceof File) {
+                          const url = URL.createObjectURL(activeImport.mappingFile);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = activeImport.mappingFile.name;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                        } else {
+                          downloadBlob(activeImport.mappingFile.content, activeImport.mappingFile.name, 'text/plain;charset=utf-8');
+                        }
+                      }}
+                      className="text-[#0f57c5] hover:underline"
                     >
-                      <span className="sr-only">Next</span>
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                      </svg>
+                      Download Mapping File
                     </button>
-                  </nav>
+                    <button
+                      onClick={() => {
+                        if (activeImport.zipFile instanceof File) {
+                          const url = URL.createObjectURL(activeImport.zipFile);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = activeImport.zipFile.name;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                        } else {
+                          downloadBlob(activeImport.zipFile.content, activeImport.zipFile.name, 'application/zip');
+                        }
+                      }}
+                      className="text-[#0f57c5] hover:underline"
+                    >
+                      Download ZIP File
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {[
+                    { key: 'All', label: `All (${resultCounts.all})` },
+                    { key: 'Success', label: `Success (${resultCounts.success})` },
+                    { key: 'Failed', label: `Failed (${resultCounts.failed})` }
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setResultFilter(tab.key)}
+                      className={`rounded-md border px-3 py-1.5 text-sm ${resultFilter === tab.key ? 'border-[#0f57c5] bg-[#eef4ff] text-[#0f57c5]' : 'border-[#d0d5dd] text-[#344054]'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  <button onClick={exportResults} className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-sm text-[#344054]">Export</button>
+                  <button onClick={() => setView('history')} className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-sm text-[#344054]">Back to History</button>
                 </div>
               </div>
-            </div>
-          </div>
+
+              <div className="overflow-auto">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead className="bg-[#f8fafc] text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3">Row #</th>
+                      <th className="px-4 py-3">Item Code</th>
+                      <th className="px-4 py-3">Item Name</th>
+                      <th className="px-4 py-3">Filename</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleResultRows.map((row) => (
+                      <tr key={row.row} className={`border-t border-[#eaecf0] ${row.status === 'Failed' ? 'bg-red-50' : ''}`}>
+                        <td className="px-4 py-3">{row.row}</td>
+                        <td className="px-4 py-3">{row.itemCode}</td>
+                        <td className="px-4 py-3">{row.itemName}</td>
+                        <td className="px-4 py-3">{row.fileName}</td>
+                        <td className="px-4 py-3">
+                          <span className={row.status === 'Success' ? 'font-medium text-green-600' : 'font-medium text-red-600'}>
+                            {row.status === 'Success' ? '✓ Success' : '✗ Failed'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{row.details}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
-  return <div className="p-10 text-4xl font-bold text-red-600">Tailwind OK</div>;
-
-};
+}
 
 export default App;
