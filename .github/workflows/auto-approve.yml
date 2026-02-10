@@ -1,0 +1,17 @@
+name: Auto approve owner PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  approve:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hmarr/auto-approve-action@v4
+        with:
+          review-message: "Auto-approved by repository owner workflow"
