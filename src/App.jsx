@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-const initialHistory = [
+const mockHistory = [
   {
     id: 'IMP-2026-001',
     type: 'Image',
@@ -63,7 +63,7 @@ const TypeBadge = ({ type }) => (
 );
 
 function App() {
-  const [historyRows, setHistoryRows] = useState(initialHistory);
+  const [historyRows, setHistoryRows] = useState(mockHistory);
   const [showImportPopup, setShowImportPopup] = useState(false);
   const [importType, setImportType] = useState('');
   const [mappingFile, setMappingFile] = useState(null);
