@@ -1,248 +1,374 @@
 import { useMemo, useState } from 'react';
 
-const navSections = [
-  'Dashboard',
-  'Clients',
-  'Assets',
-  'Job',
-  'Statistical Reports',
-  'Administration',
-  'Item Catalog',
-  'Time Reporting',
-  'Configuration'
-];
-
-const itemsData = [
+const mockHistory = [
   {
-    id: 1,
-    itemName: '"PSU-PG-P-24-33V/13A "',
-    itemId: 'XX00331',
-    itemCategory: 'Others',
-    status: 'Active',
-    unitOfMeasure: 'EA',
-    usage: 'Non stock item',
-    notes: '"PSU-PG-P-24-33V/13A "',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
+    id: 'IMP-2026-001',
+    type: 'Image',
+    mappingFile: 'item-image-mapping-jan.csv',
+    zipFile: 'images-jan.zip',
+    date: '2026-02-10 09:12',
+    user: 'Suzi Tan',
+    successCount: 9,
+    failedCount: 3,
+    status: 'Completed',
+    mappingContent: 'itemCode,fileName\nXX00331,psu-24v.jpg',
+    zipContent: 'Mock ZIP content: images for January import'
   },
   {
-    id: 2,
-    itemName: '"S" landing door key',
-    itemId: 'HMSS018',
-    itemCategory: 'Schedule of rates',
-    status: 'Active',
-    unitOfMeasure: 'PC',
-    usage: 'Stock item',
-    notes: '"S" landing door key',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
-  },
-  {
-    id: 3,
-    itemName: '"TAPE-2"" MASKING TAPE TIP-210 "',
-    itemId: 'XX00390',
-    itemCategory: 'Others',
-    status: 'Active',
-    unitOfMeasure: 'EA',
-    usage: 'Non stock item',
-    notes: 'Tape for repair works',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
-  },
-  {
-    id: 4,
-    itemName: '"Triangle" landing door key',
-    itemId: 'HMSS019',
-    itemCategory: 'Schedule of rates',
-    status: 'Active',
-    unitOfMeasure: 'PC',
-    usage: 'Stock item',
-    notes: 'Triangle lock key',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
-  },
-  {
-    id: 5,
-    itemName: '"VACUUM BAG - Electrolux" Model "',
-    itemId: 'XX00489',
-    itemCategory: 'Others',
-    status: 'Active',
-    unitOfMeasure: 'EA',
-    usage: 'Stock item',
-    notes: 'Consumable',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
-  },
-  {
-    id: 6,
-    itemName: '"VVVF Inverter Unit (17th',
-    itemId: 'XX00501',
-    itemCategory: 'Schedule of rates',
-    status: 'Active',
-    unitOfMeasure: 'EA',
-    usage: 'Stock item',
-    notes: 'Spare part',
-    saleOrganization: 'SO_1000 - MESP SALES ORG.'
+    id: 'IMP-2026-002',
+    type: 'Attachment',
+    mappingFile: 'attachment-mapping-feb.xlsx',
+    zipFile: 'attachments-feb.zip',
+    date: '2026-02-10 10:03',
+    user: 'Suzi Tan',
+    successCount: 12,
+    failedCount: 0,
+    status: 'Completed',
+    mappingContent: 'itemCode,fileName\nHMSS018,door-key-manual.pdf',
+    zipContent: 'Mock ZIP content: attachments for February import'
   }
 ];
 
-const InfoRow = ({ label, value }) => (
-  <div className="grid grid-cols-[130px_1fr] gap-4 text-sm leading-8 ">
-    <span className="text-[#5f6b78]">{label}</span>
-    <span className="text-[#101828]">{value}</span>
-  </div>
+const makeResultRows = () => [
+  { row: 1, itemCode: 'XX00331', itemName: 'PSU-PG-P-24-33V/13A', fileName: 'psu-24v.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 2, itemCode: 'HMSS018', itemName: 'S landing door key', fileName: 's-key.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 3, itemCode: 'XX00390', itemName: 'TAPE-2 MASKING TAPE TIP-210', fileName: 'masking-tape.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 4, itemCode: 'HMSS019', itemName: 'Triangle landing door key', fileName: 'triangle-key.jpg', status: 'Failed', details: 'Filename not found in ZIP' },
+  { row: 5, itemCode: 'XX00489', itemName: 'VACUUM BAG - Electrolux', fileName: 'vacuum-bag.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 6, itemCode: 'XX00501', itemName: 'VVVF Inverter Unit', fileName: 'inverter-unit.jpg', status: 'Failed', details: 'Item code does not exist' },
+  { row: 7, itemCode: 'XX00622', itemName: 'LED Strip Light - 5m', fileName: 'led-strip.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 8, itemCode: 'HMSS025', itemName: 'Emergency Exit Sign', fileName: 'exit-sign.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 9, itemCode: 'XX00788', itemName: 'Fire Extinguisher - 5kg', fileName: 'extinguisher.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 10, itemCode: 'HMSS033', itemName: 'Smoke Detector - Ceiling Mount', fileName: 'smoke-detector.jpg', status: 'Success', details: 'Imported successfully' },
+  { row: 11, itemCode: 'XX00811', itemName: 'Door Motor 3HP', fileName: 'door-motor.jpg', status: 'Failed', details: 'Unsupported file extension in ZIP' },
+  { row: 12, itemCode: 'XX00815', itemName: 'Control Board v2', fileName: 'control-board.jpg', status: 'Success', details: 'Imported successfully' }
+];
+
+const downloadBlob = (content, fileName, mimeType) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const TypeBadge = ({ type }) => (
+  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${type === 'Image' ? 'bg-sky-100 text-sky-700' : 'bg-violet-100 text-violet-700'}`}>
+    {type}
+  </span>
 );
 
 function App() {
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [search, setSearch] = useState('');
+  const [view, setView] = useState('history');
+  const [historyRows, setHistoryRows] = useState(mockHistory);
+  const [importType, setImportType] = useState('');
+  const [mappingFile, setMappingFile] = useState(null);
+  const [zipFile, setZipFile] = useState(null);
+  const [activeImport, setActiveImport] = useState(null);
+  const [resultFilter, setResultFilter] = useState('All');
 
-  const filteredItems = useMemo(() => {
-    const keyword = search.toLowerCase();
-    return itemsData.filter(
-      (item) => item.itemName.toLowerCase().includes(keyword) || item.itemId.toLowerCase().includes(keyword)
-    );
-  }, [search]);
+  const canUpload = Boolean(importType && mappingFile && zipFile);
+
+  const visibleResultRows = useMemo(() => {
+    if (!activeImport) return [];
+    if (resultFilter === 'All') return activeImport.resultRows;
+    return activeImport.resultRows.filter((row) => row.status === resultFilter);
+  }, [activeImport, resultFilter]);
+
+  const resultCounts = useMemo(() => {
+    if (!activeImport) return { all: 0, success: 0, failed: 0 };
+    const success = activeImport.resultRows.filter((row) => row.status === 'Success').length;
+    const failed = activeImport.resultRows.filter((row) => row.status === 'Failed').length;
+    return { all: activeImport.resultRows.length, success, failed };
+  }, [activeImport]);
+
+  const startNewImport = () => {
+    setImportType('');
+    setMappingFile(null);
+    setZipFile(null);
+    setView('new');
+  };
+
+  const submitImport = () => {
+    if (!canUpload) return;
+
+    const resultRows = makeResultRows();
+    const successCount = resultRows.filter((r) => r.status === 'Success').length;
+    const failedCount = resultRows.filter((r) => r.status === 'Failed').length;
+
+    const newImport = {
+      id: `IMP-2026-${String(historyRows.length + 1).padStart(3, '0')}`,
+      type: importType,
+      mappingFile,
+      zipFile,
+      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      user: 'Suzi Tan',
+      successCount,
+      failedCount,
+      status: 'Completed',
+      resultRows
+    };
+
+    setHistoryRows((prev) => [
+      {
+        ...newImport,
+        mappingFile: mappingFile.name,
+        zipFile: zipFile.name,
+        mappingContent: 'Uploaded mapping file',
+        zipContent: 'Uploaded ZIP file'
+      },
+      ...prev
+    ]);
+    setActiveImport(newImport);
+    setResultFilter('All');
+    setView('result');
+  };
+
+  const openHistoryDetail = (row) => {
+    const detailedImport = {
+      ...row,
+      mappingFile: { name: row.mappingFile, content: row.mappingContent },
+      zipFile: { name: row.zipFile, content: row.zipContent },
+      resultRows: makeResultRows()
+    };
+    setActiveImport(detailedImport);
+    setResultFilter('All');
+    setView('result');
+  };
+
+  const exportResults = () => {
+    if (!activeImport) return;
+    const header = 'row,itemCode,itemName,fileName,status,details';
+    const lines = activeImport.resultRows.map((r) => `${r.row},${r.itemCode},"${r.itemName}",${r.fileName},${r.status},"${r.details}"`);
+    downloadBlob([header, ...lines].join('\n'), `${activeImport.id}-result.csv`, 'text/csv;charset=utf-8');
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f3f5f7] text-[#0f172a]">
+    <div className="flex h-screen bg-[#f3f5f7] text-[#111827]">
       <aside className="w-64 shrink-0 bg-[#001a3a] text-white">
-        <div className="flex h-14 items-center gap-3 border-b border-[#16365d] px-4">
-          <div className="text-4xl font-bold">K</div>
-          <p className="text-3xl font-semibold">Kegmil</p>
+        <div className="flex h-14 items-center gap-3 border-b border-[#13355f] px-4">
+          <div className="text-3xl font-bold">K</div>
+          <div className="text-2xl font-semibold">Kegmil</div>
         </div>
-        <nav className="py-4">
-          {navSections.map((section) => {
-            const isItemCatalog = section === 'Item Catalog';
-            return (
-              <div key={section} className="mb-1">
-                <div className="px-4 py-2 text-base text-[#b7c4d8]">{section}</div>
-                {isItemCatalog && (
-                  <div>
-                    <div className="px-9 py-3 text-[15px] text-[#aeb7c4]">Item Category</div>
-                    <div className="bg-[#0f57c5] px-9 py-3 text-[15px] font-medium text-white">Items</div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <nav className="space-y-1 py-4 text-sm">
+          {['Dashboard', 'Clients', 'Assets', 'Job', 'Statistical Reports', 'Administration'].map((item) => (
+            <div key={item} className="px-4 py-2 text-[#b6c3d8]">{item}</div>
+          ))}
+          <div className="px-4 py-2 text-[#b6c3d8]">Item Catalog</div>
+          <div className="px-9 py-2 text-[#b6c3d8]">Item Category</div>
+          <div className="px-9 py-2 text-[#b6c3d8]">Items</div>
+          <div className="bg-[#0f57c5] px-9 py-2 font-medium text-white">Import</div>
         </nav>
       </aside>
 
-      <main className="flex-1 overflow-hidden">
-        <header className="flex h-14 items-center justify-between border-b border-[#dce2ea] bg-white px-6">
-          <h1 className="text-4xl font-semibold">Items</h1>
-          <div className="text-[15px] text-[#344054]">Suzi Tan</div>
+      <main className="flex-1 overflow-auto">
+        <header className="flex h-14 items-center justify-between border-b border-[#e4e7ec] bg-white px-6">
+          <h1 className="text-2xl font-semibold">Import</h1>
+          <span className="text-sm text-[#475467]">Suzi Tan</span>
         </header>
 
         <div className="p-6">
-          <div className="rounded-sm border border-[#e5e7eb] bg-white p-4">
-            <div className="mb-4 flex items-center gap-3">
-              <button className="rounded border border-[#cfd4dc] px-4 py-2 text-sm text-[#475467]">⚲</button>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by Item Name, ..."
-                className="h-11 w-[340px] rounded border border-[#cfd4dc] px-4 text-sm outline-none"
-              />
-              <button className="h-11 rounded border border-[#cfd4dc] px-6 text-sm text-[#344054]">Status ▾</button>
-            </div>
+          {view === 'history' && (
+            <section className="rounded-lg border border-[#e4e7ec] bg-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Import History</h2>
+                <button onClick={startNewImport} className="rounded-md bg-[#0f57c5] px-4 py-2 text-sm font-medium text-white hover:bg-[#0d4cae]">
+                  + New Import
+                </button>
+              </div>
 
-            <div className="overflow-auto border border-[#e6e9ee]">
-              <table className="w-full min-w-[1200px] border-collapse bg-white text-left">
-                <thead>
-                  <tr className="border-b border-[#e6e9ee] bg-[#f8fafc] text-sm text-[#111827]">
-                    <th className="px-5 py-4 font-semibold">ITEM NAME</th>
-                    <th className="px-5 py-4 font-semibold">ITEM ID</th>
-                    <th className="px-5 py-4 font-semibold">ITEM CATEGORY</th>
-                    <th className="px-5 py-4 font-semibold">STATUS</th>
-                    <th className="px-5 py-4 font-semibold">UNIT OF MEASURE</th>
-                    <th className="px-5 py-4 font-semibold">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredItems.map((item) => (
-                    <tr key={item.id} className="border-b border-[#edf0f4] text-base text-[#344054]">
-                      <td className="px-5 py-4 align-top">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedItem(item)}
-                          className="text-left font-semibold text-[#0759cf] hover:underline"
-                        >
-                          {item.itemName}
-                        </button>
-                      </td>
-                      <td className="px-5 py-4">{item.itemId}</td>
-                      <td className="px-5 py-4">{item.itemCategory}</td>
-                      <td className="px-5 py-4">{item.status}</td>
-                      <td className="px-5 py-4">{item.unitOfMeasure}</td>
-                      <td className="px-5 py-4">&nbsp;</td>
+              <div className="overflow-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-[#f8fafc] text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Type</th>
+                      <th className="px-4 py-3">Mapping File</th>
+                      <th className="px-4 py-3">ZIP File</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Success / Failed</th>
+                      <th className="px-4 py-3">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id} className="cursor-pointer border-t border-[#eaecf0] hover:bg-[#f9fafb]" onClick={() => openHistoryDetail(row)}>
+                        <td className="px-4 py-3 font-medium text-[#0f57c5]">{row.id}</td>
+                        <td className="px-4 py-3"><TypeBadge type={row.type} /></td>
+                        <td className="px-4 py-3">{row.mappingFile}</td>
+                        <td className="px-4 py-3">{row.zipFile}</td>
+                        <td className="px-4 py-3">{row.date}</td>
+                        <td className="px-4 py-3">{row.user}</td>
+                        <td className="px-4 py-3">{row.successCount} / {row.failedCount}</td>
+                        <td className="px-4 py-3">{row.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
-            <div className="flex items-center justify-end gap-2 px-2 pt-4 text-[15px] text-[#475467]">
-              <span>1-10 of 7067 items</span>
-              <button className="rounded border border-[#d0d5dd] px-3 py-1 text-[#98a2b3]">‹</button>
-              <button className="rounded bg-[#0f57c5] px-3 py-1 text-white">1</button>
-              <button className="rounded border border-[#d0d5dd] px-3 py-1">2</button>
-              <button className="rounded border border-[#d0d5dd] px-3 py-1">3</button>
-            </div>
-          </div>
+          {view === 'new' && (
+            <section className="mx-auto max-w-4xl rounded-lg border border-[#e4e7ec] bg-white p-6">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">New Import</h2>
+                <button onClick={() => setView('history')} className="rounded border border-[#d0d5dd] px-3 py-2 text-sm text-[#344054]">Back</button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-2 text-sm font-medium">Import Type <span className="text-red-500">*</span></p>
+                  <div className="flex gap-6 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="importType" value="Image" checked={importType === 'Image'} onChange={(e) => setImportType(e.target.value)} />
+                      Image
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="importType" value="Attachment" checked={importType === 'Attachment'} onChange={(e) => setImportType(e.target.value)} />
+                      Attachment
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-sm font-medium">Mapping File (CSV / Excel) <span className="text-red-500">*</span></p>
+                      <button type="button" onClick={() => downloadBlob('itemCode,fileName\nXX00331,psu-24v.jpg', 'import-template.csv', 'text/csv;charset=utf-8')} className="text-sm text-[#0f57c5] hover:underline">
+                        Download template
+                      </button>
+                    </div>
+                    <label htmlFor="mapping-file" className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-[#98a2b3] bg-[#f8fafc] px-4 py-3 text-sm">
+                      <span>{mappingFile ? mappingFile.name : 'Click to select mapping file'}</span>
+                      <span className="rounded border border-[#d0d5dd] px-3 py-1">Browse</span>
+                    </label>
+                    <input id="mapping-file" type="file" accept=".csv,.xls,.xlsx" className="hidden" onChange={(e) => setMappingFile(e.target.files?.[0] || null)} />
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-sm font-medium">ZIP File (images / attachments) <span className="text-red-500">*</span></p>
+                    <label htmlFor="zip-file" className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-[#98a2b3] bg-[#f8fafc] px-4 py-3 text-sm">
+                      <span>{zipFile ? zipFile.name : 'Click to select ZIP file'}</span>
+                      <span className="rounded border border-[#d0d5dd] px-3 py-1">Browse</span>
+                    </label>
+                    <input id="zip-file" type="file" accept=".zip" className="hidden" onChange={(e) => setZipFile(e.target.files?.[0] || null)} />
+                  </div>
+                </div>
+
+                <button
+                  onClick={submitImport}
+                  disabled={!canUpload}
+                  className={`rounded-md px-4 py-2 text-sm font-medium text-white ${canUpload ? 'bg-[#0f57c5] hover:bg-[#0d4cae]' : 'cursor-not-allowed bg-[#98a2b3]'}`}
+                >
+                  Upload & Import
+                </button>
+              </div>
+            </section>
+          )}
+
+          {view === 'result' && activeImport && (
+            <section className="rounded-lg border border-[#e4e7ec] bg-white p-5">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="mb-2 flex items-center gap-3">
+                    <h2 className="text-lg font-semibold">Import Result</h2>
+                    <TypeBadge type={activeImport.type} />
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    <button
+                      onClick={() => {
+                        if (activeImport.mappingFile instanceof File) {
+                          const url = URL.createObjectURL(activeImport.mappingFile);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = activeImport.mappingFile.name;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                        } else {
+                          downloadBlob(activeImport.mappingFile.content, activeImport.mappingFile.name, 'text/plain;charset=utf-8');
+                        }
+                      }}
+                      className="text-[#0f57c5] hover:underline"
+                    >
+                      Download Mapping File
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (activeImport.zipFile instanceof File) {
+                          const url = URL.createObjectURL(activeImport.zipFile);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = activeImport.zipFile.name;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                        } else {
+                          downloadBlob(activeImport.zipFile.content, activeImport.zipFile.name, 'application/zip');
+                        }
+                      }}
+                      className="text-[#0f57c5] hover:underline"
+                    >
+                      Download ZIP File
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {[
+                    { key: 'All', label: `All (${resultCounts.all})` },
+                    { key: 'Success', label: `Success (${resultCounts.success})` },
+                    { key: 'Failed', label: `Failed (${resultCounts.failed})` }
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setResultFilter(tab.key)}
+                      className={`rounded-md border px-3 py-1.5 text-sm ${resultFilter === tab.key ? 'border-[#0f57c5] bg-[#eef4ff] text-[#0f57c5]' : 'border-[#d0d5dd] text-[#344054]'}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  <button onClick={exportResults} className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-sm text-[#344054]">Export</button>
+                  <button onClick={() => setView('history')} className="rounded-md border border-[#d0d5dd] px-3 py-1.5 text-sm text-[#344054]">Back to History</button>
+                </div>
+              </div>
+
+              <div className="overflow-auto">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead className="bg-[#f8fafc] text-[#475467]">
+                    <tr>
+                      <th className="px-4 py-3">Row #</th>
+                      <th className="px-4 py-3">Item Code</th>
+                      <th className="px-4 py-3">Item Name</th>
+                      <th className="px-4 py-3">Filename</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleResultRows.map((row) => (
+                      <tr key={row.row} className={`border-t border-[#eaecf0] ${row.status === 'Failed' ? 'bg-red-50' : ''}`}>
+                        <td className="px-4 py-3">{row.row}</td>
+                        <td className="px-4 py-3">{row.itemCode}</td>
+                        <td className="px-4 py-3">{row.itemName}</td>
+                        <td className="px-4 py-3">{row.fileName}</td>
+                        <td className="px-4 py-3">
+                          <span className={row.status === 'Success' ? 'font-medium text-green-600' : 'font-medium text-red-600'}>
+                            {row.status === 'Success' ? '✓ Success' : '✗ Failed'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{row.details}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
       </main>
-
-      {selectedItem && (
-        <>
-          <div className="fixed inset-0 bg-black/35" onClick={() => setSelectedItem(null)} />
-          <section className="fixed right-0 top-0 z-10 h-full w-[52vw] min-w-[760px] overflow-y-auto bg-white shadow-2xl">
-            <div className="flex h-14 items-center gap-4 border-b border-[#e4e7ec] px-6 text-2xl">
-              <button
-                type="button"
-                onClick={() => setSelectedItem(null)}
-                className="text-[#98a2b3]"
-              >
-                ✕
-              </button>
-              <h2 className="font-medium text-[#101828]">{selectedItem.itemName}</h2>
-            </div>
-
-            <div className="space-y-8 p-6 text-base">
-              <div>
-                <h3 className="mb-4 border-b border-[#eaecf0] pb-2 text-3xl font-semibold">General Information</h3>
-                <div className="grid grid-cols-2 gap-5">
-                  <InfoRow label="Item Name" value={selectedItem.itemName} />
-                  <InfoRow label="Status" value={selectedItem.status} />
-                  <InfoRow label="Item ID" value={selectedItem.itemId} />
-                  <InfoRow label="External ID" value="--" />
-                  <InfoRow label="Item Category" value={selectedItem.itemCategory} />
-                  <InfoRow label="Created On" value="--" />
-                  <InfoRow label="Usage" value={selectedItem.usage} />
-                  <InfoRow label="Modified On" value="--" />
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4 border-b border-[#eaecf0] pb-2 text-3xl font-semibold">Inventory Details</h3>
-                <InfoRow label="Unit of Measure" value={selectedItem.unitOfMeasure} />
-              </div>
-
-              <div>
-                <h3 className="mb-4 border-b border-[#eaecf0] pb-2 text-3xl font-semibold">Organization Information</h3>
-                <div className="grid grid-cols-2 gap-5">
-                  <InfoRow label="Division" value="--" />
-                  <InfoRow label="Sale Organization" value={selectedItem.saleOrganization} />
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-4 border-b border-[#eaecf0] pb-2 text-3xl font-semibold">Additional Information</h3>
-                <div className="space-y-4">
-                  <InfoRow label="Attachments" value="" />
-                  <InfoRow label="Notes" value={selectedItem.notes} />
-                </div>
-              </div>
-            </div>
-          </section>
-        </>
-      )}
     </div>
   );
 }
